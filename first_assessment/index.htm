@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<title>Events</title>
+		<script src="https://cdn.jsdelivr.net/npm/vue@2/dist/vue.js"></script>
+		<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-EVSTQN3/azprG1Anm3QDgpJLIm9Nao0Yz1ztcQTwFspd3yD65VohhpuuCOmLASjC" crossorigin="anonymous">
+		<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-MrcW6ZMFYlzcLA8Nl+NtUVF0sA7MsXsP1UyJoMp4YLEuNSfAP+JcXn/tWtIaxVXM" crossorigin="anonymous"></script>
+	</head>
+	<body>
+		<div id="app">
+			<div class="container mt-5">
+				<div class="d-flex justify-content-center">
+					<div class="me-2 w-50">
+						<select v-model="selectedOption" class="form-select" aria-label="Default select example">
+							<option  value="" selected disabled>Select date</option>
+							<option value="1">Yesterday</option>
+							<option value="2">Last week</option>
+							<option value="3">Last month</option>
+							<option value="4">Custom date</option>
+						</select>
+					</div>
+					<div class="mx-2">
+						<date-picker v-model="dateObj" lang="en" type="date" range placeholder="Select date range" :disabled="selectedOption != 4"></date-picker>
+					</div>
+					<div class="ms-2">
+						<button @click.prevent="getData()" type="button" class="btn btn-md btn-primary">Get</button>
+					</div>
+				</div>
+				<div class="mt-5">
+					<div class="accordion" id="accordionExample">
+						<div v-for="(data, i) in eventData" :index="i" class="accordion-item">
+						  <h2 class="accordion-header" :id="'heading'+i">
+							<button class="accordion-button" type="button" data-bs-toggle="collapse" :data-bs-target="'#collapse'+i" aria-expanded="true" :aria-controls="'collapse'+i">
+								{{data.division}}
+								<span class="m-2 badge bg-primary rounded-pill">{{data.events.length}}</span>
+							</button>
+						  </h2>
+						  <div :id="'collapse'+i" class="accordion-collapse collapse hide" :aria-labelledby="'heading'+i" data-bs-parent="#accordionExample">
+							<div class="accordion-body">
+								<table class="table table-striped">
+									<tr v-for="(row, j) in data.events" :index="j">
+										<td class="table-primary">{{row.bunting}}</td>
+										<td class="table-secondary">{{row.date}}</td>
+										<td class="table-success">{{row.notes}}</td>
+										<td class="table-danger">{{row.title}}</td>
+									  </tr>
+								</table>
+							</div>
+						  </div>
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+		<script src="https://cdn.jsdelivr.net/npm/vue2-datepicker@1.9.6/dist/build.min.js"></script>
+		<script>
+			Vue.use(DatePicker.default);
+			var app = new Vue({
+				el: '#app',
+				components: {
+
+				},
+				data: {
+					selectedOption: '',
+					eventInitialData: null,
+					eventData: [],
+					dateObj: [null, null]
+				},
+				watch: {
+					selectedOption: function (newValue) {
+						if(newValue == 1) {
+							let today = new Date()
+							this.dateObj[0] = this.dateObj[1] = new Date(today.setDate(today.getDate() - 1));
+						}
+						else if(newValue == 2) {
+							let today = new Date()
+							this.dateObj[1] = new Date(today.setTime(today.getTime() - (today.getDay() ? today.getDay() : 7) * 24 * 60 * 60 * 1000));
+							this.dateObj[0] = new Date(today.setTime(today.getTime() - 6 * 24 * 60 * 60 * 1000));
+						}
+						else if(newValue == 3) {
+							let today = new Date()
+							this.dateObj[0] = new Date(today.getFullYear(), today.getMonth()-1, 1);
+							this.dateObj[1] = new Date(today.getFullYear(), today.getMonth(), 0);
+						}
+						this.getData()
+					},
+					dateObj: function (dates) {
+						this.dateObj = dates
+					}
+				},
+				methods: {
+					async getData() {
+						if(this.eventInitialData == null) {
+							await this.fetchData();
+						}
+						this.eventData = JSON.parse(JSON.stringify(this.eventInitialData))
+						if(this.dateObj[0] !== null && this.dateObj[0] !== null) {
+							for(let element in this.eventData) {
+								this.eventData[element].events = this.filterData(this.eventData[element].events)
+							}
+						}
+					},
+					filterData(events) {
+						let startDate = this.dateObj[0]
+						let endDate = this.dateObj[1]
+						let data = events.filter(ev => (new Date(ev.date) >=  new Date(startDate) && new Date(ev.date) <  new Date(endDate)))
+						return data
+					},
+					async fetchData() {
+						await fetch('https://www.gov.uk/bank-holidays.json')
+						.then(response => response.json())
+						.then(data => this.eventInitialData = data)
+						.catch((error) => {
+							console.error('Error:', error);
+						});
+					}
+				}
+
+			})
+		</script>
+	</body>
+</html>
